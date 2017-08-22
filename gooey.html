@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width">
+  <style>
+    body {
+      padding: 0px;
+      margin: 0px;
+      overflow: hidden;
+    }
+  </style>
+</haed>
+<body>
+  <svg style='height: 0px'>
+    <defs>
+      <filter id="filter">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"></feGaussianBlur>
+        <feColorMatrix in="blur" mode="matrix"
+          values="0 0 0 1 0
+                  0 0 0 0.5 0.8
+                  0 0 0 0 0
+                  0 0 0 40 -5" result="filter"></feColorMatrix>
+        <feBlend></feBlend>
+      </filter>
+    </defs>
+  <svg>
+  <script>
+    const WIDTH = window.innerWidth;
+    const HEIGHT = window.innerHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.style.filter = 'url(#filter)'
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    let n = 0;
+    let size = 300;
+
+    class Blob {
+      constructor({radius, position, velocity}) {
+        this.radius = radius || 10;
+
+        if(position) {
+          this.position = {
+            x: position.x,
+            y: position.y
+          }
+        } else {
+          this.position = {
+            x: WIDTH / 2,
+            y: HEIGHT / 2
+          }
+        }
+
+        if(velocity) {
+          this.velocity = {
+            x: velocity.x,
+            y: velocity.y
+          }
+        } else {
+          this.velocity = {
+            x: 0,
+            y: 0
+          }
+        }
+
+        const pointCount = (this.radius * 0.4) >> 0;
+
+        if (pointCount > 0) {
+          this.points = Array.from(new Array(pointCount)).map((d, i) => {
+            const x = Math.cos(2 * Math.PI * i / pointCount) * this.radius;
+            const y = Math.sin(2 * Math.PI * i / pointCount) * this.radius;
+            return {x, y};
+          });
+          this.points.push({x: this.points[0].x, y: this.points[0].y})
+        } else {
+          this.points.push({
+            x: position.x,
+            y: position.y
+          });
+        }
+      }
+
+      draw(t) {
+
+        ctx.save();
+        ctx.beginPath();
+        this.points.forEach((p, i) => {
+          const point = {
+            x: p.x + Math.cos(i - t / 100) * (Math.random() * 2 + 1) + this.position.x,
+            y: p.y + Math.sin(i + t / 100) * (Math.random() * 2 + 1) + this.position.y
+          }
+          if(i == 0 || i == this.points.length - 1){
+            ctx.moveTo(p.x + this.position.x, p.y + this.position.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        });
+        ctx.closePath();
+        ctx.fillStyle = '#000'
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      update() {
+        const { position, velocity } = this;
+        position.x += velocity.x;
+        position.y += velocity.y;
+      }
+    }
+
+    const mainBlob = new Blob({radius: 100, position:{x : WIDTH * 0.5, y: HEIGHT * 0.5}});
+
+    function dist(x1, y1, x2, y2) {
+      return Math.sqrt(Math.pow(x1-x2, 2) + Math.pow(y1-y2, 2))
+    }
+
+    const subBlobCount = 20;
+    const subBlobs = Array.from(new Array(subBlobCount)).map((d, i) => {
+      const x = Math.cos(2 * Math.PI * i / subBlobCount) * mainBlob.radius * 3 + mainBlob.position.x + (Math.random() - 0.5) * 100;
+      const y = Math.sin(2 * Math.PI * i / subBlobCount) * mainBlob.radius * 3 + mainBlob.position.y + (Math.random() - 0.5) * 100;
+
+      const n = dist(x, y, mainBlob.position.x, mainBlob.position.y);
+      const vx = -(x - mainBlob.position.x) / n * (1 + 3 * Math.random())
+      const vy = -(y - mainBlob.position.y) / n * (1 + 3 * Math.random())
+
+      return new Blob({radius: 10 * Math.random() + 10, position:{x , y}, velocity: {x: vx, y: vy}})
+    });
+
+    function draw(t) {
+      canvas.width = WIDTH;
+
+      mainBlob.update();
+      mainBlob.draw(t);
+
+      subBlobs.forEach((subBlob) => {
+        if(subBlob.position.x > WIDTH + subBlob.radius || subBlob.position.x + subBlob.radius < 0) {
+          subBlob.velocity.x *= -1;
+        }
+        if(subBlob.position.y > HEIGHT + subBlob.radius || subBlob.position.y + subBlob.radius < 0) {
+          subBlob.velocity.y *= -1;
+        }
+        subBlob.update();
+        subBlob.draw(t);
+      })
+
+      // blobs.forEach((blob) => {
+      //   blob.update();
+      //   blob.draw(t);
+      // })
+      requestAnimationFrame((t) => draw(t));
+    }
+
+    draw();
+
+  </script>
+</body>
+</html>

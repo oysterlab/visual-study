@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+
+    <title>star field</title>
+    <style>
+      body {
+        padding: 0px;
+        margin: 0px;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const WIDTH = window.screen.width;
+      const HEIGHT = window.screen.height;
+      const MAX_SPEED = 14;
+      const START_COUNT = 1000;
+      const MAX_RADIUS = 4;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      document.body.appendChild(canvas);
+      let speed = MAX_SPEED;
+
+      class Star {
+        constructor() {
+          this.x = (2. * Math.random() - 1.) * WIDTH;
+          this.y = (2. * Math.random() - 1.) * HEIGHT;
+          this.z = Math.random() * WIDTH;
+          this.r = Math.random() * MAX_RADIUS;
+
+          this.pz = this.z;
+        }
+
+        draw() {
+          ctx.beginPath();
+
+          const x = this.x / this.z * WIDTH;
+          const y = this.y / this.z * HEIGHT;
+
+          const px = this.x / this.pz * WIDTH;
+          const py = this.y / this.pz * HEIGHT;
+
+          ctx.moveTo(px, py);
+          ctx.lineTo(x, y);
+          ctx.strokeStyle = '#fff';
+          ctx.stroke();
+           ctx.arc(x, y, this.r, 0, 2 * Math.PI, false);
+           ctx.fillStyle = '#fff';
+           ctx.fill();
+
+          ctx.closePath();
+        }
+
+        update() {
+          this.pz = this.z;
+          this.z-=speed;
+
+          if(this.z < 0) {
+            this.x = (2. * Math.random() - 1.) * WIDTH;
+            this.y = (2. * Math.random() - 1.) * HEIGHT;
+            this.z = Math.random() * WIDTH;
+            this.r = Math.random() * MAX_RADIUS;
+            this.pz = this.z;
+          }
+        }
+      }
+
+      const stars = Array.from(new Array(START_COUNT)).map(() => {
+        return new Star();
+      })
+
+      let camera = {
+        x: 0, y: 0
+      }
+      const draw = () => {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        ctx.save();
+        ctx.translate(WIDTH / 2 - camera.x, HEIGHT / 2 - camera.y);
+        stars.forEach((star) => {
+          star.update();
+          star.draw();
+        });
+        ctx.restore();
+
+        requestAnimationFrame(() => draw());
+      }
+
+      draw();
+
+      canvas.addEventListener('mousemove', (e) => {
+        const x = (WIDTH/2 - e.layerX)
+        const y = (HEIGHT/2 - e.layerY)
+
+        camera.x = x;
+        camera.y = y;
+        const MAX_LEN = Math.sqrt(Math.pow(WIDTH / 2, 2) + Math.pow(HEIGHT / 2, 2));
+        const len = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+
+//        speed = len / MAX_LEN * MAX_SPEED;
+      });
+      </script>
+  </body>
+</html>

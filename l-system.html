@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+      body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        padding: 0px;
+        margin: 0px;
+      }
+    </style>
+    <title></title>
+  </head>
+  <body>
+    <script>
+       const WIDTH = window.innerWidth;
+       const HEIGHT = window.innerHeight;
+
+       const rules = [{
+         a: 0.05,
+         b: 0,
+         c: 0,
+         d: 0.6,
+         tx: 0,
+         ty: 0,
+         weight: 0.17
+       }, {
+         a: 0.05,
+         b: 0,
+         c: 0,
+         d: -0.5,
+         tx: 0,
+         ty: 1,
+         weight: 0.17
+
+       }, {
+         a: 0.46,
+         b: -0.321,
+         c: 0.386,
+         d: 0.383,
+         tx: 0,
+         ty: 0.6,
+         weight: 0.17
+       }, {
+         a: 0.47,
+         b: -0.154,
+         c: 0.171,
+         d: 0.423,
+         tx: 0,
+         ty: 1.1,
+         weight: 0.17
+       }, {
+         a: 0.433,
+         b: 0.275,
+         c: -0.25,
+         d: 0.476,
+         tx: 0,
+         ty: 1,
+         weight: 0.16
+       }, {
+         a: 0.421,
+         b: 0.257,
+         c: -0.353,
+         d: 0.306,
+         tx: 0,
+         ty: 0.7,
+         weight: 0.16
+       }]
+
+       const canvas = document.createElement('canvas');
+       canvas.width = WIDTH;
+       canvas.height = HEIGHT;
+
+       canvas.style.marginLeft = ((window.innerWidth - WIDTH) * 0.5) + 'px'
+       canvas.style.marginTop = ((window.innerHeight - HEIGHT) * 0.5) + 'px'
+
+       document.body.appendChild(canvas);
+
+       const context = canvas.getContext('2d');
+       let x = Math.random();
+       let y = Math.random();
+
+       class Particle {
+         constructor(x, y, size){
+           this.x = x;
+           this.y = y;
+           this.size = size;
+           this.vx = 0;
+           this.vy = 0;
+           this.ax = 0;
+           this.ay = 0;
+           this.w = 0.5 + Math.random();
+           this.h = 0.5 + Math.random();
+           this.color = Math.random() * 360 >> 0;
+
+           this.oriX = x;
+           this.oriY = y;
+
+           this.spread_count = 0;
+           this.spread = false;
+         }
+
+         update() {
+           const len = Math.sqrt(Math.pow(this.x - this.oriX, 2) + Math.pow(this.y - this.oriY, 2));
+           if (this.spread_count > 0) {
+             this.spread_count--;
+             if (this.spread_count == 0) {
+               this.vx = 0;
+               this.vy = 0;
+               this.ax = -(this.x - this.oriX) / len * (Math.random() + 0.1);
+               this.ay = -(this.y - this.oriY) / len * (Math.random() + 0.1);
+               this.back_len = len;
+             }
+           }
+
+           if (this.spread) {
+             this.vx += this.ax;
+             this.vy += this.ay;
+
+             this.x += this.vx;
+             this.y += this.vy;
+
+             this.back_len -= Math.sqrt(Math.pow(this.vx, 2) + Math.pow(this.vy, 2));
+
+             if(this.spread_count == 0 && this.back_len < 0) {
+               this.vx = 0;
+               this.vy = 0;
+               this.ax = 0;
+               this.ay = 0;
+               this.x = this.oriX;
+               this.y = this.oriY;
+               this.spread = false;
+             }
+           }
+         }
+
+         draw() {
+           const {x, y} = this;
+           context.fillRect(x * 200, -y * 200, 1, 1)
+         }
+       }
+
+       const particles = [];
+
+       gen();
+
+       function gen(){
+
+         const rowTreeCount = 4 + (Math.random() * 3 >> 0);
+
+         for(let i = 0; i < rowTreeCount; i++) {
+           const treeX = WIDTH / rowTreeCount * i + (200 * Math.random())
+           const treeY = HEIGHT * 0.5 + (Math.random() - 0.5) * 140
+           const size = 50 * Math.random() + 50
+           Array.from(new Array(parseInt(size * (50 * Math.random() + 20)))).forEach((d, i) => {
+             const rule = getRule();
+
+             const x1 = x * rule.a + y * rule.b + rule.tx;
+             const y1 = x * rule.c + y * rule.d + rule.ty;
+             x = x1;
+             y = y1;
+
+             particles.push(new Particle(x * size + treeX, -y * size + treeY, size))
+           })
+         }
+
+         Array.from(new Array(12000)).forEach((d, i) => {
+           const rule = getRule();
+
+           const x1 = x * rule.a + y * rule.b + rule.tx;
+           const y1 = x * rule.c + y * rule.d + rule.ty;
+           x = x1;
+           y = y1;
+
+           particles.push(new Particle(x * 130 + WIDTH / 2, -y * 130 + HEIGHT * 0.8, 130))
+         })
+       }
+
+       function getRule() {
+         let rand = Math.random();
+
+         for (let i = 0; i < rules.length; i++) {
+           if (rand < rules[i].weight) {
+             return rules[i]
+           }
+
+           rand -= rules[i].weight;
+         }
+       }
+
+       function draw() {
+         context.fillStyle = '#ffffff';
+         context.fillRect(0, 0, WIDTH, HEIGHT)
+
+         particles.forEach((particle) => {
+           context.beginPath();
+           context.fillStyle = '#000'
+           const x = particle.x;
+           const y = particle.y;
+           const w = particle.w;
+           const h = particle.h;
+
+           context.rect(x, y, w, h)
+           context.fill()
+           context.closePath();
+         })
+       }
+
+       function update() {
+         particles.forEach((particle) => particle.update())
+       }
+
+       function run() {
+         update();
+         draw();
+         requestAnimationFrame(run)
+       }
+
+       const interact = ({layerX, layerY}) => {
+         const r = 10;
+
+         particles.forEach((particle) => {
+           const size = particle.size * 0.09;
+           const len = Math.sqrt(Math.pow(particle.x - layerX, 2) + Math.pow(particle.y - layerY, 2))
+           if(len < r * Math.random() + 10) {
+             particle.ax = (Math.random() - 0.5) * 2 * 0.4;
+             particle.ay = (Math.random() - 0.5) * 2 * 0.4;
+
+             particle.spread_count = (Math.random() * size >> 0) + 1;
+             particle.spread = true;
+           }
+         })
+       }
+
+       canvas.addEventListener('mousemove', interact)
+       canvas.addEventListener('touchmove', interact)
+
+       run();
+    </script>
+  </body>
+</html>

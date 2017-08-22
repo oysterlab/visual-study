@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      padding: 0px;
+      margin: 0px;
+    }
+  </style>
+  <script src='lib/three.min.js'></script>
+  <script src='lib/OrbitControls.js'></script>
+</head>
+<body>
+
+  <script>
+    const WIDTH = 800;
+    const HEIGHT = 800;
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    document.body.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    const camera = new THREE.PerspectiveCamera(50, WIDTH/HEIGHT, 1, 5000);
+    camera.position.z = 800;
+    const control = new THREE.OrbitControls(camera);
+    const scene = new THREE.Scene();
+
+    const geometry = new THREE.InstancedBufferGeometry();
+    geometry.copy(new THREE.BoxBufferGeometry(2, 2, 2));
+
+    const particleCount = 100000;
+    const realPositions = new Float32Array(particleCount * 3);
+    const rotates = new Float32Array(particleCount * 2);
+    const colors = new Float32Array(particleCount * 3);
+
+    for(let i = 0; i < particleCount; i++) {
+      const pi = i * 3;
+
+      realPositions[pi + 0] = (Math.random() - 0.5) * 2 * 400;
+      realPositions[pi + 1] = (Math.random() - 0.5) * 2 * 20;
+      realPositions[pi + 2] = (Math.random() - 0.5) * 2 * 20;
+
+      colors[pi + 0] = Math.random();
+      colors[pi + 1] = Math.random();
+      colors[pi + 2] = Math.random();
+
+      const ri = i * 2;
+      rotates[ri + 0] = Math.random() * Math.PI * 2;
+      rotates[ri + 1] = Math.random() * Math.PI * 2;
+    }
+
+//    geometry.addAttribute('color', new THREE.InstancedBufferAttribute(colors, 3, 1));
+    geometry.addAttribute('real_position', new THREE.InstancedBufferAttribute(realPositions, 3, 1));
+    geometry.addAttribute('rotate', new THREE.InstancedBufferAttribute(rotates, 2, 1));
+
+    const vertexShader = `
+      precision highp float;
+
+      attribute vec3 real_position;
+      attribute vec2 rotate;
+
+      varying vec3 v_normal;
+      varying mat4 v_modelMatrix;
+
+      mat4 rotateX(float d) {
+        mat4 m;
+        m[0] = vec4(1.0, 0.0, 0.0, 0.0);
+        m[1] = vec4(0.0, cos(d), sin(d), 0.0);
+        m[2] = vec4(0.0,-sin(d), cos(d), 0.0);
+        m[3] = vec4(0.0, 0.0, 0.0, 1.0);
+        return m;
+      }
+
+      mat4 rotateY(float d) {
+        mat4 m;
+        m[0] = vec4(cos(d), 0.0, -sin(d), 0.0);
+        m[1] = vec4(0.0, 1.0, 0.0, 0.0);
+        m[2] = vec4(sin(d), 0.0, cos(d), 0.0);
+        m[3] = vec4(0.0, 0.0, 0.0, 1.0);
+        return m;
+      }
+
+      mat4 translateXYZ(vec3 t) {
+        mat4 m;
+        m[0] = vec4(1.0, 0.0, 0.0, 0.0);
+        m[1] = vec4(0.0, 1.0, 0.0, 0.0);
+        m[2] = vec4(0.0, 0.0, 1.0, 0.0);
+        m[3] = vec4(t.x, t.y, t.z, 1.0);
+        return m;
+      }
+
+      void main() {
+        v_normal = normal;
+        v_modelMatrix = modelMatrix * rotateX(rotate.x) * rotateY(rotate.y);
+
+        gl_Position = projectionMatrix * modelMatrix * viewMatrix * translateXYZ(real_position) * rotateX(rotate.x) * rotateY(rotate.y) * vec4(position, 1.0);
+      }
+    `
+
+    const fragmentShader = `
+      precision highp float;
+
+      uniform vec3 lightDirection;
+      uniform vec3 color;
+
+      varying vec3 v_normal;
+      varying mat4 v_modelMatrix;
+
+      void main() {
+        vec4 normal = v_modelMatrix * vec4(v_normal, 1.0) - v_modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        float light = dot(lightDirection, normal.xyz);
+        gl_FragColor = vec4(color * light, 1.0);
+      }
+    `
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        lightDirection: { value: [0.9, 1.0, 1.1], type: '3fv'},
+        color: { value: [0.4, 0.8, 0.4], type: '3fv'},
+      },
+      vertexShader,
+      fragmentShader
+    });
+
+    const positions = geometry.attributes.real_position.array;
+    const particles = new THREE.Mesh(geometry, material);
+    scene.add(particles);
+
+    const xPositions = [];
+    for (let i = 0; i < particleCount; i++) {
+      const pi = i * 3;
+      const x = positions[pi + 0];
+      const x_ = (x + 200) / 400;
+      xPositions.push(positions[pi + 1]);
+    }
+
+    function draw(t) {
+      geometry.computeVertexNormals();
+      renderer.render(scene, camera);
+//      const positions = geometry.attributes.real_position.array;
+
+      for (let i = 0; i < particleCount; i++) {
+        const pi = i * 3;
+        const x = positions[pi + 0];
+        const x_ = (x + 200) / 400;
+        positions[pi + 1] = xPositions[i] + (20 + 0 * (Math.random() - 0.5)) * Math.sin(2 * Math.PI * x_ + t/150);
+      }
+
+
+      geometry.attributes.real_position.needsUpdate = true;
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

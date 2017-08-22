@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src='lib/three.min.js'></script>
+  <script src='lib/OrbitControls.js'></script>
+  <script src='lib/simplex-noise.js'></script>
+</head>
+<body>
+  <script>
+    const WIDTH = window.screen.width;
+    const HEIGHT = window.screen.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    document.body.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    const camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 1, 5000);
+    camera.position.x = -100;
+    camera.position.z = 1000;
+    const controls = new THREE.OrbitControls(camera);
+    const scene = new THREE.Scene();
+
+    const vertexShader = `
+      precision highp float;
+
+      uniform mat4 projectionMatrix;
+      uniform mat4 modelViewMatrix;
+
+      attribute vec3 position;
+      attribute vec3 translate;
+
+      void main() {
+        vec3 translate_ = position + translate;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(translate_, 1.0);
+      }
+    `
+
+    const fragmentShader = `
+      precision highp float;
+
+      void main() {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      }
+    `
+
+    const geometry = new THREE.InstancedBufferGeometry();
+    geometry.copy(new THREE.CircleBufferGeometry(6, 6));
+
+    const RADIUS = 50;
+    const MAX_LIFE = 300;
+
+    const FLOW_VEL = {
+      min: {x : 0.01, y: 0.001, z: -0.3},
+      x: 0.01, //-0.6,
+      y: 0.001, //-0.4,
+      z: -0.3
+    }
+
+
+    const CENTER_POS = {
+      x: 300,
+      y: 0,
+      z: 100
+    }
+
+    class Particle {
+      constructor(pos) {
+        this.init(pos);
+      }
+
+      init(pos) {
+        this.initPos = {
+          x: pos.x,
+          y: pos.y,
+          z: pos.z
+        }
+
+        this.initVel = {
+          x: FLOW_VEL.min.x + FLOW_VEL.x * Math.random(),
+          y: FLOW_VEL.min.y + FLOW_VEL.y * Math.random(),
+          z: FLOW_VEL.min.z + FLOW_VEL.z * Math.random()
+        }
+        this.vel = { x:0, y:0, z:0 }
+        this.pos = pos;
+        this.life = Math.random() * MAX_LIFE >> 0;
+      }
+
+      update(t) {
+        const x_ = this.pos.x * 0.001;
+        const y_ = this.pos.y * 0.001;
+        const z_ = this.pos.z * 0.001;
+
+        const vx = this.initVel.x + simplex.noise4D(x_, y_, z_, t/100) * 0.5;
+        const vy = this.initVel.y + simplex.noise4D(x_* 0.001, y_, z_* 10, t/100) * 0.5;
+        const vz = this.initVel.z + simplex.noise4D(x_* 10, y_* 0.1, z_, t/100) * 0.5;
+
+        this.vel.x += vx
+        this.vel.y += vy
+        this.vel.z += vz
+
+        this.pos.x += this.vel.x;
+        this.pos.y += this.vel.y;
+        this.pos.z += this.vel.z;
+
+        this.life--;
+      }
+
+      isAlive() {
+        return this.life > 0
+      }
+    }
+
+
+    function randomSpherePoint(x0,y0,z0,radius){
+       var u = Math.random();
+       var v = Math.random();
+       var theta = 2 * Math.PI * u;
+       var phi = Math.acos(2 * v - 1);
+       var x = x0 + (radius * Math.sin(phi) * Math.cos(theta) + Math.random() * radius);
+       var y = y0 + (radius * Math.sin(phi) * Math.sin(theta) + Math.random() * radius);
+       var z = z0 + (radius * Math.cos(phi) + Math.random() * radius);
+       return {x,y,z};
+    }
+
+    const particleCount = Math.pow(2, 16);
+    const particles = [];
+    for(let i = 0; i < particleCount; i++) {
+      const pos = randomSpherePoint(CENTER_POS.x, CENTER_POS.y, CENTER_POS.z, RADIUS);
+      particles.push(new Particle(pos));
+    }
+
+
+    const translates = new Float32Array(particleCount * 3)
+
+    for(let i = 0; i < particles.length; i++) {
+      const particle = particles[i];
+      const ti = i * 3;
+      translates[ti + 0] = particle.pos.x;
+      translates[ti + 1] = particle.pos.y;
+      translates[ti + 2] = particle.pos.z;
+    }
+
+    geometry.addAttribute('translate', new THREE.InstancedBufferAttribute(translates, 3, 1))
+
+    const material = new THREE.RawShaderMaterial({
+      uniforms : {
+        t: {value : 0}
+      },
+      vertexShader,
+      fragmentShader,
+      side: THREE.DoubleSide,
+      deptTest: true,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    const simplex = new SimplexNoise();
+
+    const translates_ = mesh.geometry.attributes.translate.array;
+    function update(t) {
+
+      for(let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+        const ti = i * 3;
+        particle.update(t);
+
+        translates[ti + 0] = particle.pos.x;
+        translates[ti + 1] = particle.pos.y;
+        translates[ti + 2] = particle.pos.z;
+
+        if(!particle.isAlive()) {
+          const pos = randomSpherePoint(CENTER_POS.x, CENTER_POS.y, CENTER_POS.z, RADIUS);
+          particle.init(pos);
+        }
+      }
+
+      mesh.geometry.attributes.translate.needsUpdate = true;
+    }
+
+    function draw(t) {
+      update(t);
+      renderer.render(scene, camera);
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+
+    // const context = canvas.getContext('2d');
+    // const particleCount = Math.pow(2, 12); //4096
+    // const propertiesCount = 4; //px, py, vx, vy;
+    //
+    // const particleMapWidth = Math.ceil(Math.sqrt(particleCount));
+    // const particleMapHeight = Math.ceil(particleCount / particleMapWidth);
+    //
+    // const particleMap = [];
+    //
+    // const VX = 10;
+    // const VY = 10;
+    //
+    // function encoding(value) {
+    //   const rgb = [];
+    //
+    //   return rgb
+    // }
+    //
+    // for(let y = 0; y < particleMapHeight; y++) {
+    //   for(let x = 0; x < particleMapWidth; x++) {
+    //     const i = x + y * particleMapWidth;
+    //
+    //     // px
+    //
+    //     // py
+    //
+    //     // vx
+    //
+    //     // vy
+    //   }
+    // }
+    //
+    // function draw() {
+    //   context.fillStyle = '#fff';
+    //   context.fillRect(0, 0, WIDTH, HEIGHT);
+    //   requestAnimationFrame(draw);
+    // }
+    //
+    // requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

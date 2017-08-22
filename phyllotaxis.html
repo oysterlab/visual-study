@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <style>
+    body {
+      padding: 0px;
+      margin: 0px;
+      overflow: hidden;
+    }
+  </style>
+</haed>
+<body>
+  <script>
+    const WIDTH = 600;
+    const HEIGHT = 600;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    let n = 0;
+    let size = 300;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    function draw(t) {
+      n++;
+      n = n % 1000;
+      let x = size * n / 1000 * Math.cos(Math.PI * n / 10) + WIDTH / 2;
+      let y = size * n / 1000 * Math.sin(Math.PI * n / 10) + HEIGHT / 2;
+      console.log(x, y);
+      ctx.beginPath();
+      ctx.rect(x, y, 2, 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)'
+      ctx.fill();
+      ctx.closePath();
+
+      x = size * n / 1000 * Math.cos(n) + WIDTH / 2;
+      y = size * n / 1000 * Math.sin(n) + HEIGHT / 2;
+      ctx.beginPath();
+      ctx.rect(x, y, 2, 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)'
+      ctx.fill();
+      ctx.closePath();
+
+      requestAnimationFrame((t) => draw(t));
+    }
+
+    draw();
+
+  </script>
+</body>
+</html>

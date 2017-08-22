@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      padding: 0px;
+      margin: 0px;
+      overflow: hidden;
+    }
+  </style>
+  <script src='lib/three.min.js'></script>
+  <script src='lib/OrbitControls.js'></script>
+</head>
+<body>
+  <script>
+    const WIDTH = 800;
+    const HEIGHT = 800;
+    const canvas = document.createElement('canvas');
+    document.body.appendChild(canvas);
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    const camera = new THREE.PerspectiveCamera(50, WIDTH/HEIGHT, 1, 5000);
+    camera.position.z = 1000;
+    const controls = new THREE.OrbitControls(camera);
+    const scene = new THREE.Scene();
+
+    const particleSize = 80;
+    const geometry = new THREE.InstancedBufferGeometry();
+    geometry.copy(new THREE.BoxBufferGeometry(particleSize, particleSize, particleSize));
+
+    const geometry_ = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
+    const particleCount = 1;
+    const translates = new Float32Array(particleCount * 3);
+    const normals = new Float32Array(particleCount * 3);
+
+    for(let i = 0; i < particleCount; i++) {
+      const ti = i * 3;
+      const range = 400;
+      translates[ti + 0] = (Math.random() - 0.5) * 2 * range;
+      translates[ti + 1] = (Math.random() - 0.5) * 2 * range;
+      translates[ti + 2] = (Math.random() - 0.5) * 2 * range;
+    }
+
+    geometry.addAttribute('translate', new THREE.InstancedBufferAttribute(translates, 3, 1));
+    geometry.addAttribute('normal', new THREE.BufferAttribute(normals, 3));
+
+    const vertexShader = `
+      precision highp float;
+
+      uniform mat4 projectionMatrix;
+      uniform mat4 modelViewMatrix;
+
+      attribute vec3 position;
+      attribute vec3 translate;
+      attribute vec3 normal;
+
+      varying vec3 v_normal;
+
+      void main() {
+        v_normal = normal;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position + translate, 1.0);
+      }
+    `;
+    const fragmentShader = `
+      precision highp float;
+
+      uniform vec3 color;
+
+      varying vec3 v_normal;
+
+      void main() {
+        vec3 directional_light = vec3(0.3, 0.3, 0.0);
+        float light = dot(directional_light, v_normal);
+        vec3 l_color = color * light;
+
+        gl_FragColor = vec4(v_normal, 1.0);
+
+        // if(v_normal.x >= 0.5) {
+        //   gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0);
+        // }
+      }
+    `;
+
+    const material = new THREE.RawShaderMaterial({
+      uniforms: {
+        color: {value: [0.4, 1.0, 0.4], type: '3fv'}
+      },
+      vertexShader,
+      fragmentShader,
+      side: THREE.DoubleSide,
+    });
+
+    const particles = new THREE.Mesh(geometry, material);
+    scene.add(particles);
+
+    // dumy
+    const dummyGeometry = new THREE.PlaneGeometry(40, 40);
+    const dummyMaterial = new THREE.MeshBasicMaterial({color: 0x0f8f0f});
+    const dummyMesh = new THREE.Mesh(dummyGeometry, dummyMaterial);
+//    scene.add(dummyMesh);
+
+    geometry.computeVertexNormals();
+    function draw(t) {
+      renderer.render(scene, camera);
+
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

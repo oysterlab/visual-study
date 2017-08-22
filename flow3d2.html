@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      overflow: hidden;
+      margin: 0px;
+      padding: 0px;
+    }
+  </style>
+  <script src='./lib/three.min.js'></script>
+  <script src='./lib/OrbitControls.js'></script>
+  <script src='./lib/simplex-noise.js'></script>
+</head>
+<body>
+  <script>
+    function hslToRgb(h, s, l){
+        var r, g, b;
+
+        if(s == 0){
+            r = g = b = l; // achromatic
+        }else{
+            var hue2rgb = function hue2rgb(p, q, t){
+                if(t < 0) t += 1;
+                if(t > 1) t -= 1;
+                if(t < 1/6) return p + (q - p) * 6 * t;
+                if(t < 1/2) return q;
+                if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            }
+
+            var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            var p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+
+        return [r, g, b];
+    }
+
+    const WIDTH = window.screen.width;
+    const HEIGHT = window.screen.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    document.body.appendChild(canvas);
+
+    const noise = new SimplexNoise();
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    const camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 1, 5000);
+
+    camera.position.x = -270.93266893447645;
+    camera.position.y = 141.57356720206278;
+    camera.position.z = 188.8211634221384;
+
+    camera.rotation.x = -0.38355911583044583;
+    camera.rotation.y = -0.22125815841061588;
+    camera.rotation.z = -0.08833055527737008;
+
+    const control = new THREE.OrbitControls(camera);
+
+    const particleGeometry = new THREE.InstancedBufferGeometry();
+    particleGeometry.copy(new THREE.BoxBufferGeometry(1, 1, 1));
+
+    const particleCount = 30000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      const pi = i * 3;
+      const depth = 100;
+      positions[pi + 0] = (Math.random() - 0.5) * 2 * depth;
+      positions[pi + 1] = (Math.random() - 0.5) * 2 * depth;
+      positions[pi + 2] = (Math.random() - 0.5) * 2 * depth;
+
+      const h = 80 + 40 * Math.random() >> 0;
+      const rgb = hslToRgb(h, 1.0, 0.5);
+      colors[pi + 0] = 0.2 + Math.random() * 0.5; //rgb[0];
+      colors[pi + 1] = 0.5 + Math.random() * 0.5; // rgb[1];
+      colors[pi + 2] = Math.random() * 0.5; // rgb[2];
+    }
+
+    particleGeometry.addAttribute('real_position', new THREE.InstancedBufferAttribute(positions, 3, 1));
+    particleGeometry.addAttribute('p_color', new THREE.InstancedBufferAttribute(colors, 3, 1));
+
+    const vertexShader =
+    `
+      precision highp float;
+
+      attribute vec3 real_position;
+      attribute vec3 p_color;
+
+      varying vec3 v_color;
+
+      void main() {
+        vec3 pos = position + real_position;
+        v_color = p_color;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `
+
+    const fragmentShader =
+    `
+      precision highp float;
+      varying vec3 v_color;
+
+      void main() {
+        gl_FragColor = vec4(v_color, 1.0);
+      }
+    `
+
+    const particleMaterial = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      side: THREE.DoubleSide
+    })
+
+    const particleObj = new THREE.Mesh(particleGeometry, particleMaterial);
+
+    const scene = new THREE.Scene();
+    scene.add(particleObj);
+
+    const DEPTH = 100;
+    const MIN_LIFE = 100;
+    const MAX_LIFE = 500;
+    const MOVEMENT = 2.0;
+    const INTERVAL = 0.005;
+    const TIME = 0.0000001;
+
+    const V = [0.0, 0.0, 0.0];
+
+    class Particle {
+      constructor() {
+        this.refresh();
+      }
+
+      refresh() {
+        this.x = (Math.random() - 0.5) * 2 * DEPTH;
+        this.y = (Math.random() - 0.5) * 2 * DEPTH;
+        this.z = (Math.random() - 0.5) * 2 * DEPTH;
+
+        this.life = MIN_LIFE + (MAX_LIFE - MIN_LIFE) * Math.random() >> 0;
+      }
+
+      update(t) {
+        let { x, y, z } = this;
+
+        let r = noise.noise3D(x * INTERVAL + 0.0001 * t % 100000, y * INTERVAL, t * TIME);
+        const x_ = Math.cos(r);
+        const y_ = Math.sin(r);
+        const z_ = Math.atan2(x_, y_);
+
+        this.z += -z_ * MOVEMENT;
+        this.y += -y_ * MOVEMENT;
+        this.x += -x_ * MOVEMENT * 0.5;//noise.noise4D(x * INTERVAL, y * INTERVAL, z * INTERVAL, t * TIME) * MOVEMENT;
+
+        this.x += V[0];
+        this.y += V[1];
+        this.z += V[2];
+
+        this.life--;
+
+        if(this.life < 0)
+          this.refresh();
+      }
+    }
+
+    const particles = Array.from(new Array(particleCount)).map(() => new Particle());
+
+    function update(t) {
+      particles.forEach((particle) => particle.update(t));
+    }
+
+    function draw(t) {
+
+      const postions = particleObj.geometry.attributes.real_position.array;
+
+      for(let pi = 0 ; pi < postions.length; pi += 3) {
+        positions[pi + 0] = particles[pi / 3].x;
+        positions[pi + 1] = particles[pi / 3].y;
+        positions[pi + 2] = particles[pi / 3].z;
+      }
+
+      particleObj.geometry.attributes.real_position.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+
+    function run(t) {
+      update(t);
+      draw(t);
+
+      requestAnimationFrame(run);
+    }
+
+    requestAnimationFrame(run);
+  </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+  <haed>
+    <style>
+      body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        margin: 0px;
+        padding: 0px;
+      }
+    </style>
+    <script src='./lib/simplex-noise.js'></script>
+  </head>
+
+  <body>
+    <script>
+      const WIDTH = 800;
+      const HEIGHT = 800;
+      const canvas = document.createElement('canvas');
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      document.body.appendChild(canvas);
+
+      const context = canvas.getContext('2d');
+
+      const simplex = new SimplexNoise();
+
+      class Particle {
+        constructor(x, y) {
+          this.x = x
+          this.y = y;
+
+          this.vx = 0;
+          this.vy = 0;
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+
+          if(this.x < 0) this.x = WIDTH;
+          if(this.x > WIDTH) this.x = 0;
+          if(this.y < 0) this.y = HEIGHT;
+          if(this.y > HEIGHT) this.y = 0;
+        }
+
+        updateVel(vx, vy) {
+          this.vx = vx;
+          this.vy = vy;
+        }
+
+        draw() {
+          const { x, y } = this;
+          context.beginPath();
+            context.fillStyle = '#000';
+            context.arc(x, y, 2, 0, 2 * Math.PI);
+            context.fill();
+          context.closePath();
+        }
+      }
+
+      const particles = [];
+
+      const offsetX = WIDTH / 20 >> 0;
+      const offsetY = HEIGHT / 20 >> 0;
+
+      for(let i = 0; i < 10000; i++) {
+        const x = Math.random() * WIDTH;
+        const y = Math.random() * HEIGHT;
+        particles.push(new Particle(x, y));
+      }
+
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, WIDTH, HEIGHT);
+
+      function draw(t) {
+
+        let i = 0 ;
+        for(let y = 0; y < HEIGHT; y+=offsetY) {
+          for(let x = 0; x < WIDTH; x+=offsetX) {
+            context.save();
+            context.translate(x, y);
+            context.beginPath();
+            const n = Math.PI * simplex.noise3D(x * 0.001, y * 0.001, t * 0.0001);   //(simplex.noise3D(x * 0.004, y * 0.004, t * 0.001) + 1.0) / 2.0;
+            context.rotate(n);
+            context.moveTo(0, 0);
+            context.lineTo(offsetX, 0);
+            context.strokeStyle = 'rgba(0, 0, 0, 0.01)';
+            context.strokeWidth = 4;
+            context.stroke();
+            context.closePath();
+            context.restore();
+
+            // const particle = particles[i];
+            // const n_ = Math.PI * 2 * simplex.noise3D(10 * offsetX * 0.0005, 10 * offsetX * 0.0005, t * 0.0001);   //(simplex.noise3D(x * 0.004, y * 0.004, t * 0.001) + 1.0) / 2.0;
+            // const vx = Math.cos(n_) * 2;
+            // const vy = Math.sin(n_) * 2;
+            //
+            // if(particle) {
+            //   particle.updateVel(vx, vy);
+            //   particle.update();
+            //   particle.draw(t)
+            // }
+            // i++;
+          }
+        }
+
+        requestAnimationFrame((t) => draw(t));
+      }
+
+      draw(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+    <script src='./lib/oflow.js'></script>
+    <title>Spread</title>
+    <style>
+      body {
+        padding: 0px;
+        margin: 0px;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script>
+
+      const { width, height } = window.screen;
+      const canvas = document.createElement('canvas');
+      canvas.style.background = '#000';
+      canvas.width = width;
+      canvas.height = height;
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      const LINE_COUNT = 400;
+      const X_INTERVAL = 5;
+      const Y_INTERVAL = 5;
+      const LINE_WIDTH = 3;
+
+      // color palletes references by http://www.color-hex.com/color-palettes
+      const COLORS_PALLETES =
+      [
+        [`rgba(255, 209, 138, 0.3)`, `rgba(255, 155, 111, 0.3)`, `rgba(255, 115, 115, 0.3)`, `rgba(191, 68, 105, 0.3)`, `rgba(108, 0, 118, 0.3)`],
+        [`rgba(39, 20, 16, 0.3)`, `rgba(90, 1, 7, 0.3)`, `rgba(128, 1, 22, 0.3)`, `rgba(149, 0, 29, 0.3)`, `rgba(176, 4, 52, 0.3)`],
+        [`rgba(3, 111, 202, 0.3)`, `rgba(4, 154, 241, 0.3)`, `rgba(23, 181, 254, 0.3)`, `rgba(255, 255, 255, 0.3)`, `rgba(255, 255, 255, 0.3)`],
+        [`rgba(255, 209, 138, 0.3)`, `rgba(255, 155, 111, 0.3)`, `rgba(255, 115, 115, 0.3)`, `rgba(191, 68, 105, 0.3)`, `rgba(108, 0, 118, 0.3)`],
+        [`rgba(255, 97, 154, 0.3)`, `rgba(207, 97, 154, 0.3)`, `rgba(159, 97, 154, 0.3)`, `rgba(63, 97, 154, 0.3)`, `rgba(108, 0, 118, 0.3)`],
+        [`rgba(255, 102, 204, 0.3)`, `rgba(204, 255, 102, 0.3)`, `rgba(102, 204, 255, 0.3)`, `rgba(255, 255, 255, 0.3)`, `rgba(0, 0, 0, 0.3)`],
+        [`rgba(18, 175, 131, 0.3)`, `rgba(139, 30, 196, 0.3)`, `rgba(0, 105, 169, 0.3)`, `rgba(238, 238, 238, 0.3)`, `rgba(255, 238, 238, 0.3)`],
+        [`rgba(233, 133, 133, 0.3)`, `rgba(201, 242, 201, 0.3)`, `rgba(222, 222, 236, 0.3)`, `rgba(233, 186, 186, 0.3)`, `rgba(169, 143, 143, 0.3)`],
+        [`rgba(198, 76, 67, 0.3)`, `rgba(128, 97, 54, 0.3)`, `rgba(234, 225, 192, 0.3)`, `rgba(245, 238, 219, 0.3)`, `rgba(72, 58, 58, 0.3)`],
+        [`rgba(216, 20, 23, 0.3)`, `rgba(253, 169, 123, 0.3)`, `rgba(253, 247, 0, 0.3)`, `rgba(42, 156, 59, 0.3)`, `rgba(199, 240, 246, 0.3)`],
+      ];
+
+      const LIFE_TIME = 200;
+      const COLORS = COLORS_PALLETES[Math.random() * COLORS_PALLETES.length >> 0];
+
+      const momentPoint = {
+        x: width / 2, y: height / 2,
+      }
+
+      const genNewLine = () => {
+        return {
+          life: LIFE_TIME,
+          x: momentPoint.x,
+          y: momentPoint.y,
+          color: COLORS[(Math.random() * COLORS.length) >> 0]
+        };
+      }
+      const lines = Array.from(new Array(LINE_COUNT)).map(() => genNewLine());
+
+
+      const draw = () => {
+        lines.forEach((line, i) => {
+          ctx.beginPath();
+          ctx.moveTo(line.x, line.y);
+          let nextX = (Math.random() < 0.5) ? line.x + X_INTERVAL : line.x - X_INTERVAL;
+          let nextY = (Math.random() < 0.5) ? line.y + Y_INTERVAL : line.y - Y_INTERVAL;
+
+          ctx.lineTo(nextX, nextY);
+          ctx.lineWidth = LINE_WIDTH;
+          ctx.strokeStyle = line.color;
+          ctx.stroke();
+          ctx.closePath();
+
+          line.x = nextX;
+          line.y = nextY;
+
+          line.life--;
+          if (line.life < 0) {
+            lines.splice(i, 1);
+          }
+        });
+
+        requestAnimationFrame(() => draw());
+      }
+
+      draw();
+
+    </script>
+  </body>
+</html>

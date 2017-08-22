@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0px;
+      padding: 0px;
+      overflow: hidden;
+    }
+  </style>
+
+</head>
+<body>
+  <script>
+    const WIDTH = 800;
+    const HEIGHT = 800;
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    document.body.appendChild(canvas);
+    const context = canvas.getContext('2d');
+
+    class Segment {
+      constructor(x, y, len, r) {
+        this.sx = x;
+        this.sy = y;
+
+        this.ex = this.sx + len;
+        this.angle = 30;
+        this.ey = this.sy;
+        this.len = len;
+        this.r = r;
+      }
+
+      follow(x, y) {
+        const { len, r } = this;
+        const dx = x - this.sx;
+        const dy = y - this.sy;
+        const t = Math.sqrt(dx*dx + dy*dy);
+        const rad = Math.atan2(dy, dx);
+
+        this.angle = rad;
+
+        this.sx = x - dx / t * r * len;
+        this.sy = y - dy / t * r * len;
+      }
+
+      update() {
+        const { len, angle, r } = this;
+
+        const dx = r * Math.cos(angle);
+        const dy = r * Math.sin(angle);
+
+        this.ex = this.sx - dx;
+        this.ey = this.sy - dy;
+      }
+
+      draw(t) {
+        const { r, len } = this;
+        context.beginPath();
+          context.save();
+          context.translate(this.sx, this.sy);
+          context.rotate(this.angle)
+          context.fillStyle = `hsl(${(t / 10) % 360}, 60%, 97%)`;
+          context.arc(0, 0, r * len, 0, 2 * Math.PI);
+//          context.rect(-r / 2, -r / 2 * len / 2, r * len, r * len);
+          // context.moveTo(this.sx, this.sy);
+          // context.lineTo(this.ex, this.ey);
+          context.fill();
+          context.restore();
+        context.closePath();
+      }
+    }
+
+    const segments = [];
+
+    for(let i = 0; i < 50; i++) {
+      segments.push(new Segment(200, 400, 100, (50 - i) / 301));
+    }
+
+    function draw(t) {
+      context.fillStyle = 'rgb(51, 51, 51)';
+      context.fillRect(0, 0, WIDTH, HEIGHT);
+
+      segments.forEach((s) => s.draw(t));
+    }
+
+    function update() {
+      segments.forEach((s) => s.update());
+    }
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    function run(t) {
+
+      update();
+      draw(t);
+
+      requestAnimationFrame(run);
+    }
+
+    run();
+
+    canvas.addEventListener('mousemove', ({layerX, layerY}) => {
+      mouseX = layerX;
+      mouseY = layerY;
+
+      segments[0].follow(mouseX, mouseY);
+      for(let i = 1; i < segments.length; i++) {
+        segments[i].follow(segments[i - 1].sx, segments[i - 1].sy);
+      }
+    });
+
+  </script>
+</body>
+</html>
