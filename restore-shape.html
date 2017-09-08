@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+
+<style>
+  body {
+    padding: 0px;
+    margin: 0px;
+    overflow: hidden;
+  }
+</style>
+
+<script src='./victor.min.js'>
+</script>
+</head>
+<body>
+<script>
+    const BALL_COUNT = 100
+
+    const WIDTH = window.innerWidth
+    const HEIGHT = window.innerHeight
+    const canvas = document.createElement('canvas')
+    canvas.width = WIDTH
+    canvas.height = HEIGHT
+    document.body.appendChild(canvas)
+
+    const context = canvas.getContext('2d')
+
+    const friction = new Victor(0.97, 0.97)
+
+    class Point {
+      constructor(x, y) {
+        this.initP = new Victor(x, y)
+        this.p = this.initP.clone()
+        this.a = new Victor(0, 0)
+        this.v = new Victor(0, 0)
+        this.r = 4
+      }
+
+      update(mouseP, fR) {
+
+        if(this.p.clone().subtract(mouseP).length() < fR + this.r) {
+          const f = forceDir.clone().norm().multiply(new Victor(fR * 0.05 * Math.random(), fR * 0.05 * Math.random()))
+          this.apply(f)
+        }
+
+        const restoreA = this.initP.clone().subtract(this.p).multiply(new Victor(0.001 * Math.random(), 0.001 * Math.random()))
+        this.a.add(restoreA)
+
+        this.v.add(this.a)
+        this.v.multiply(friction)
+        this.p.add(this.v)
+
+        //!!!!
+        this.a.multiply(new Victor(0, 0))
+      }
+
+      apply(f) {
+        this.a.add(f)
+      }
+
+      draw() {
+        context.fillStyle = '#fff'
+        context.beginPath()
+        context.arc(this.p.x, this.p.y, this.r, 0, 2 * Math.PI, false)
+        context.closePath()
+        context.fill()
+      }
+    }
+
+    const balls = []
+
+    for(let i = 0; i < BALL_COUNT; i++) {
+      const x = WIDTH * 0.5 + Math.cos(2 * Math.PI * i / BALL_COUNT) * 100
+      const y = HEIGHT * 0.5 + Math.sin(2 * Math.PI * i / BALL_COUNT) * 100
+      const b = new Point(x, y)
+      balls.push(b)
+    }
+
+    let mouseP = new Victor(0, 0)
+    let forceDir = new Victor(0, 0)
+
+    function render() {
+      context.clearRect(0, 0, WIDTH, HEIGHT)
+      context.fillStyle = '#000'
+      context.fillRect(0, 0, WIDTH, HEIGHT)
+
+      const r = forceDir.length();
+
+      balls.forEach((b) => {
+        b.draw()
+        b.update(mouseP, r)
+      })
+
+      const grad = context.createRadialGradient(mouseP.x, mouseP.y, 0, mouseP.x, mouseP.y, r)
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)')
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+      context.fillStyle = grad
+      context.beginPath()
+      context.arc(mouseP.x, mouseP.y, r, 0, 2 * Math.PI, false)
+      context.closePath()
+      context.fill()
+
+      requestAnimationFrame(render)
+    }
+
+    requestAnimationFrame(render)
+
+    let prevP = null
+
+    window.addEventListener('mousemove', (e) => {
+      const currP = new Victor(e.clientX, e.clientY)
+      mouseP = currP.clone()
+
+      if (prevP) {
+        forceDir = currP.clone().subtract(prevP)
+      }
+
+      prevP = currP.clone()
+    })
+</script>
+<!-- Code injected by live-server -->
+<script type="text/javascript">
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function() {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					head.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					head.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function(msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			console.log('Live reload enabled.');
+		})();
+	}
+	// ]]>
+</script>
+</body>
+</html>
