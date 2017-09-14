@@ -1,0 +1,212 @@
+
+<!--
+
+  THREE.BufferGeometry
+  THREE.Points
+
+-->
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src='./three.min.js'>
+</script>
+<script src='./three.trackball.js'>
+</script>
+<style>
+    body {
+      padding: 0px;
+      margin: 0px;
+      overflow: hidden;
+    }
+</style>
+<title></title>
+</head>
+<body>
+<script>
+    const WIDTH = window.innerWidth
+    const HEIGHT = window.innerHeight
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+    })
+    renderer.setSize(WIDTH, HEIGHT)
+    renderer.setClearColor(0x000000, 1)
+    document.body.appendChild(renderer.domElement)
+
+    const camera = new THREE.PerspectiveCamera(120, WIDTH / HEIGHT, 1, 10000)
+
+    let controls
+    function createControls() {
+      controls = new THREE.TrackballControls(camera);
+
+      controls.rotateSpeed = 1.0;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.8;
+
+      controls.noZoom = false;
+      controls.noPan = true;
+
+      controls.staticMoving = true;
+      controls.dynamicDampingFactor = 0.3;
+    }
+
+    createControls()
+
+    const scene = new THREE.Scene()
+
+    function createParticlesGeometry(img) {
+      const imgWidth = img.width
+      const imgHeight = img.height
+
+      const vertexShader = `
+        varying vec4 vColor;
+
+        attribute vec3 ttcolor;
+
+        void main() {
+
+          vec4 pos = vec4(position, 1.0);
+          vColor = vec4(ttcolor, 1.0);
+
+          gl_PointSize = 1.0;
+          gl_Position = projectionMatrix * modelViewMatrix * pos;
+        }
+      `
+
+      const fragmentShader = `
+        varying vec4 vColor;
+
+        void main() {
+          gl_FragColor = vColor;
+        }
+      `
+
+      const particleAttributes = {
+        aColor: {
+          type: 'c',
+          value: []
+        }
+      }
+
+      const geom = new THREE.BufferGeometry()
+      //geom.dynamic = false; // ???
+
+      const vertices = new Float32Array(imgHeight * imgWidth * 3)
+      const colors = new Float32Array(imgHeight * imgWidth * 3)
+
+      for (let y = 0; y < imgHeight; y++) {
+        for (let x = 0; x < imgWidth; x++) {
+          const z = -400
+
+          vertices[(y * imgWidth + x) * 3 + 0] = x
+          vertices[(y * imgWidth + x) * 3 + 1] = y
+          vertices[(y * imgWidth + x) * 3 + 2] = z
+
+          colors[(y * imgWidth + x) * 3 + 0] = img.data[(y * imgWidth + x) * 4 + 0] / 255
+          colors[(y * imgWidth + x) * 3 + 1] = img.data[(y * imgWidth + x) * 4 + 1] / 255
+          colors[(y * imgWidth + x) * 3 + 2] = img.data[(y * imgWidth + x) * 4 + 2] / 255
+        }
+      }
+
+      geom.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      geom.addAttribute('ttcolor', new THREE.BufferAttribute(colors, 3));
+      geom.computeBoundingSphere();
+
+      const material = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader
+      })
+
+      return new THREE.Points(
+        geom,
+        material
+      )
+    }
+
+
+    const img = new Image()
+    img.src = 'sample.jpg'
+
+    let particles
+    let imgInfo
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+
+      canvas.width = img.width
+      canvas.height = img.height
+
+      context.fillStyle = context.createPattern(img, 'no-repeat')
+      context.fillRect(0, 0, img.width, img.height)
+
+      const imgData = context.getImageData(0, 0, img.width, img.height).data
+
+      imgInfo = {
+        width: img.width,
+        height: img.height,
+        data: imgData,
+      }
+      particles = createParticlesGeometry(imgInfo)
+      scene.add(particles)
+    }
+
+    function render() {
+      requestAnimationFrame(render)
+
+      controls.update()
+      renderer.render(scene, camera)
+
+      if (imgInfo) {
+        const position = particles.geometry.attributes.position
+
+        for(let y = 0; y < imgInfo.height; y++) {
+          for(let x = 0; x < imgInfo.width; x++) {
+            const i = (y * imgInfo.width + x) * 3
+            position.array[i + 2] += 0.1 * Math.sin(y / imgInfo.height * 2 * Math.PI)
+          }
+        }
+
+        position.needsUpdate = true
+      }
+
+
+    }
+
+    requestAnimationFrame(render)
+
+
+</script>
+<!-- Code injected by live-server -->
+<script type="text/javascript">
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function() {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					head.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					head.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function(msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			console.log('Live reload enabled.');
+		})();
+	}
+	// ]]>
+</script>
+</body>
+</html>
